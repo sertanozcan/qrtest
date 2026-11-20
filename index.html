@@ -3,125 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111827">
+<meta name="theme-color" content="#f3f4f6">
 <title>Barkod ve QR Okuyucu</title>
 <style>
-* { box-sizing: border-box; }
-body { margin:0; background:#f3f4f6; color:#111827; font-family:system-ui,-apple-system,sans-serif; }
-main { max-width:560px; margin:auto; padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)); }
-h1 { font-size:24px; margin:0 0 6px; letter-spacing:-.5px; }
-p { margin:0 0 18px; color:#4b5563; font-size:14px; }
-#reader { width:100%; min-height:210px; overflow:hidden; border-radius:16px; background:#111827; position:relative; }
-#reader:empty::before { content:'Kamera kapalı'; position:absolute; inset:0; display:grid; place-items:center; color:#cbd5e1; font-size:14px; }
-#reader video { display:block; width:100% !important; }
-.controls { display:flex; gap:10px; margin:14px 0; }
-button { flex:1; padding:14px 10px; border:0; border-radius:10px; background:#2563eb; color:white; font:600 16px system-ui; min-height:48px; cursor:pointer; }
-button.secondary { background:#e5e7eb; color:#111827; }
-button:disabled { opacity:.45; cursor:default; }
-#status { font-size:14px; color:#4b5563; min-height:22px; margin:0 0 12px; overflow-wrap:anywhere; }
-#status.error { color:#b91c1c; }
-.result { background:white; border:1px solid #d1d5db; border-radius:14px; padding:18px; }
-.result.ok { border-color:#16a34a; }
-.label { font-size:12px; font-weight:700; color:#6b7280; letter-spacing:1px; }
-#format { font-size:13px; color:#15803d; margin-top:8px; }
-#result { margin-top:8px; font-size:26px; font-weight:650; overflow-wrap:anywhere; white-space:pre-wrap; user-select:text; }
-#copy { margin-top:16px; width:100%; font-size:14px; }
+:root{--blue:#008bd2;--red:#ff3348;--ink:#142332;--muted:#617181;--bg:#f3f6f9;--border:#dbe3eb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif}main{max-width:560px;margin:auto;padding:max(22px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}h1{font-size:24px;line-height:1.2;margin:0 0 6px;letter-spacing:-.6px}p{margin:0 0 16px;font-size:14px;color:var(--muted)}
+#reader{position:relative;isolation:isolate;aspect-ratio:4/3;overflow:hidden;border-radius:16px;background:#101a25;display:grid;place-items:center}#video,#outline{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}#video{display:none}#reader.live #video{display:block}#outline{z-index:4}#placeholder{color:#bac8d5;font-size:14px}#reader.live #placeholder{display:none}
+#guide{position:absolute;z-index:2;left:12%;right:12%;top:12%;bottom:12%;pointer-events:none;display:none;box-shadow:0 0 0 500px #0003;border-radius:10px}#reader.live.show-guide #guide{display:block}#guide i{position:absolute;width:30px;height:30px;border:3px solid white}#guide i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:10px}#guide i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:10px}#guide i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:10px}#guide i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
+#laser{display:none;position:absolute;z-index:3;left:8%;right:8%;top:50%;height:2px;background:var(--red);box-shadow:0 0 7px #ff3348;pointer-events:none}#reader.live.show-laser #laser{display:block}
+#detected{position:absolute;z-index:5;top:10px;left:50%;transform:translateX(-50%);border-radius:7px;padding:6px 10px;color:white;background:var(--blue);font-size:12px;font-weight:750;white-space:nowrap;pointer-events:none} [hidden]{display:none!important}
+.controls{display:flex;gap:9px;margin:12px 0}.controls button{flex:1;min-width:0}button{appearance:none;-webkit-appearance:none;min-height:48px;padding:12px 8px;border:1px solid transparent;border-radius:10px;background:var(--blue);color:#fff;font:650 15px system-ui;cursor:pointer;touch-action:manipulation}button.secondary{background:#e7edf3;color:var(--ink)}button:disabled{opacity:.45;cursor:default}.guides{margin-top:9px}button.toggle{background:white;color:var(--ink);border-color:var(--border);font-size:13px;display:flex;align-items:center;justify-content:center;gap:7px}button.toggle[aria-pressed=true]{color:#0077b6;background:#e4f5ff;border-color:var(--blue)}.toggle svg{width:19px;height:19px;flex-shrink:0}.toggle .state{width:7px;height:7px;border-radius:50%;background:#a7b3bf;flex-shrink:0}.toggle[aria-pressed=true] .state{background:var(--blue)}
+#status{font-size:13px;color:var(--muted);min-height:20px;margin:10px 0 12px;overflow-wrap:anywhere}#status.ok{color:#0077b6;font-weight:650}#status.error{color:#b91c1c}.result{background:white;border:1px solid var(--border);border-radius:14px;padding:16px}.result.ok{border-color:var(--blue)}.label{font-size:11px;font-weight:750;color:var(--muted);letter-spacing:1px}#format{font-size:12px;color:#0077b6;margin-top:7px;font-weight:650}#result{margin-top:7px;font-size:24px;font-weight:650;overflow-wrap:anywhere;white-space:pre-wrap;user-select:text}#copy{margin-top:14px;width:100%;font-size:14px}.hint{font-size:12px;color:var(--muted);margin:10px 0 0}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/zxing-wasm@2.2.0/dist/iife/reader/index.js"></script>
 </head>
-<body>
-<main>
-<h1>Barkod ve QR Okuyucu</h1>
-<p>Arka kamerayı aç ve kodu kameraya göster.</p>
-<div id="reader" aria-label="Kamera görüntüsü"></div>
-<div class="controls">
-<button id="start">Kamerayı aç</button>
-<button id="stop" class="secondary" disabled>Kapat</button>
+<body><main>
+<h1>Barkod ve QR Okuyucu</h1><p>Arka kamerayı aç ve kodu kameraya göster.</p>
+<div id="reader" aria-label="Kamera görüntüsü">
+ <span id="placeholder">Kamera kapalı</span>
+ <video id="video" autoplay muted playsinline webkit-playsinline></video>
+ <div id="guide" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+ <div id="laser" aria-hidden="true"></div>
+ <svg id="outline" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+ <span id="detected" hidden>✓ Kod algılandı</span>
+</div>
+<div class="controls"><button id="start">Kamerayı aç</button><button id="stop" class="secondary" disabled>Kapat</button></div>
+<div class="controls guides">
+ <button id="toggleGuide" class="toggle" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg><span>Çerçeve aç</span><i class="state"></i></button>
+ <button id="toggleLaser" class="toggle" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5v14M7 5v14M11 5v14M15 5v14M17 5v14M21 5v14"/><path d="M1 12h22" stroke="#ff3348" stroke-width="2.5"/></svg><span>Barkod çizgisi aç</span><i class="state"></i></button>
 </div>
 <div id="status" role="status">Kamera açılmayı bekliyor.</div>
-<section class="result" id="resultBox">
-<div class="label">OKUNAN KOD</div>
-<div id="format"></div>
-<div id="result" aria-live="polite">—</div>
-<button id="copy" class="secondary" disabled>Kodu kopyala</button>
-</section>
+<section class="result" id="resultBox"><div class="label">SON OKUNAN KOD</div><div id="format"></div><div id="result" aria-live="polite">—</div><button id="copy" class="secondary" disabled>Kodu kopyala</button></section>
+<p class="hint">Mavi çerçeve okunan kodu gösterir. Beyaz hedef ve kırmızı çizgi yalnızca hizalama yardımıdır.</p>
 </main>
 <script>
 'use strict';
-const start = document.getElementById('start');
-const stop = document.getElementById('stop');
-const status = document.getElementById('status');
-const result = document.getElementById('result');
-const format = document.getElementById('format');
-const copy = document.getElementById('copy');
-const resultBox = document.getElementById('resultBox');
-let scanner = null, busy = false, running = false, value = null;
-let lastFormat = '';
-function message(text, error = false) {
-  status.textContent = text;
-  status.classList.toggle('error', error);
+const $=id=>document.getElementById(id);
+const reader=$('reader'),video=$('video'),outline=$('outline'),detected=$('detected');
+const start=$('start'),stop=$('stop'),status=$('status'),result=$('result'),format=$('format'),copy=$('copy'),resultBox=$('resultBox');
+const canvas=document.createElement('canvas');
+const ctx=canvas.getContext('2d',{willReadFrequently:true});
+let stream=null,running=false,busy=false,generation=0,timer=0,hideTimer=0,value=null,lastFormat='',errorCount=0,visible=false;
+const svgNS='http://www.w3.org/2000/svg';
+function message(text,kind=''){if(status.textContent!==text)status.textContent=text;status.className=kind;}
+function buttons(){start.disabled=busy||running;stop.disabled=busy||!running;}
+function setupToggle(id,cls,label){const btn=$(id);btn.addEventListener('click',()=>{const on=btn.getAttribute('aria-pressed')!=='true';btn.setAttribute('aria-pressed',String(on));btn.querySelector('span').textContent=label+(on?' kapat':' aç');reader.classList.toggle(cls,on);});}
+setupToggle('toggleGuide','show-guide','Çerçeve');setupToggle('toggleLaser','show-laser','Barkod çizgisi');
+function clearDetection(){clearTimeout(hideTimer);outline.replaceChildren();detected.hidden=true;visible=false;}
+function scanningMessage(){message('Kamera açık. Barkodu veya QR kodu göster.');}
+function drawDetection(code,w,h){
+  const pos=code.position;
+  if(!pos)return null;
+  let pts=[pos.topLeft,pos.topRight,pos.bottomRight,pos.bottomLeft];
+  if(!pts.every(p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)))return null;
+  // Some 1D codes may have a nearly flat detected quadrilateral; expand it slightly so it remains visible.
+  const area=Math.abs(pts.reduce((s,p,i)=>{const q=pts[(i+1)%4];return s+p.x*q.y-q.x*p.y;},0))/2;
+  if(area<12){const a=pts[0],b=pts[1],dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy);if(len<2)return null;const pad=Math.max(6,Math.min(w,h)*.015),nx=-dy/len*pad,ny=dx/len*pad;pts=[{x:a.x+nx,y:a.y+ny},{x:b.x+nx,y:b.y+ny},{x:b.x-nx,y:b.y-ny},{x:a.x-nx,y:a.y-ny}];}
+  const polygon=document.createElementNS(svgNS,'polygon');polygon.setAttribute('points',pts.map(p=>`${p.x},${p.y}`).join(' '));polygon.setAttribute('stroke','#008bd2');polygon.setAttribute('stroke-width','3.5');polygon.setAttribute('vector-effect','non-scaling-stroke');polygon.setAttribute('stroke-linejoin','round');polygon.setAttribute('fill','#008bd2');polygon.setAttribute('fill-opacity','.13');return polygon;
 }
-function buttons() {
-  start.disabled = busy || running;
-  stop.disabled = busy || !running;
+function showCodes(codes,w,h){
+  const shapes=codes.map(c=>drawDetection(c,w,h)).filter(Boolean);
+  outline.setAttribute('viewBox',`0 0 ${w} ${h}`);outline.replaceChildren(...shapes);
+  detected.hidden=false;visible=true;clearTimeout(hideTimer);
+  hideTimer=setTimeout(()=>{clearDetection();if(running)scanningMessage();},550);
+  const c=codes[0],kind=c.format||'Barkod / QR';
+  if(value!==c.text||lastFormat!==kind){value=c.text;lastFormat=kind;result.textContent=value;format.textContent=kind;resultBox.classList.add('ok');copy.disabled=false;}
+  message('Kod algılandı ve okundu.','ok');
 }
-function decoded(text, details) {
-  const kind = details?.result?.format?.formatName || 'Barkod / QR';
-  if (value === text && lastFormat === kind) return;
-  value = text;
-  lastFormat = kind;
-  result.textContent = text;
-  format.textContent = kind;
-  resultBox.classList.add('ok');
-  copy.disabled = false;
-  message('Kod okundu. Sıradaki kodu okutabilirsin.');
+async function scan(id){
+  if(!running||id!==generation)return;
+  try{
+    if(video.readyState>=2&&video.videoWidth&&video.videoHeight){
+      const scale=Math.min(1,1000/Math.max(video.videoWidth,video.videoHeight));
+      const w=Math.max(1,Math.round(video.videoWidth*scale)),h=Math.max(1,Math.round(video.videoHeight*scale));
+      if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
+      ctx.drawImage(video,0,0,w,h);
+      const codes=await ZXingWASM.readBarcodes(ctx.getImageData(0,0,w,h),{tryHarder:true,tryRotate:true,tryInvert:true,maxNumberOfSymbols:1});
+      if(!running||id!==generation)return;
+      errorCount=0;
+      const valid=codes.filter(c=>c.isValid!==false&&typeof c.text==='string'&&c.text.length>0&&!c.error);
+      if(valid.length)showCodes(valid,w,h);else if(!visible)scanningMessage();
+    }
+  }catch(err){if(!running||id!==generation)return;if(++errorCount>=3){clearDetection();message('Okuyucu çalıştırılamadı. İnternet bağlantını kontrol et ve kamerayı yeniden aç.','error');release(false);return;}}
+  if(running&&id===generation)timer=setTimeout(()=>scan(id),100);
 }
-start.addEventListener('click', async () => {
-  if (busy || running) return;
-  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    message('Kamera erişimi için sayfayı HTTPS üzerinden Safari veya Chrome ile aç.', true); return;
-  }
-  if (typeof Html5Qrcode === 'undefined') {
-    message('Okuyucu kütüphanesi yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.', true); return;
-  }
-  busy = true; buttons(); message('Kamera açılıyor. İzin istenirse onayla.');
-  try {
-    scanner = scanner || new Html5Qrcode('reader', { verbose: false });
-    // Scan the whole frame to support both wide 1D barcodes and square QR codes.
-    await scanner.start({ facingMode: 'environment' }, { fps: 10 }, decoded, () => {});
-    running = true;
-    message('Kamera açık. Barkodu veya QR kodu göster.');
-  } catch (err) {
-    running = false;
-    try { scanner?.clear(); } catch (_) {}
-    const detail = String(err?.message || err);
-    message('Kamera açılamadı. Safari kamera iznini ve diğer uygulamaları kontrol et. (' + detail + ')', true);
-  } finally { busy = false; buttons(); }
+function release(showMessage=true){generation++;running=false;busy=false;clearTimeout(timer);clearDetection();if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.pause();video.srcObject=null;reader.classList.remove('live');buttons();if(showMessage)message('Kamera kapalı. Son okunan kod ekranda kalır.');}
+start.addEventListener('click',async()=>{
+  if(busy||running)return;
+  if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){message('Kamera erişimi için sayfayı HTTPS üzerinden Safari veya Chrome ile aç.','error');return;}
+  if(typeof window.ZXingWASM?.readBarcodes!=='function'){message('Okuyucu kütüphanesi yüklenemedi. İnterneti kontrol edip sayfayı yenile.','error');return;}
+  const id=++generation;busy=true;buttons();message('Kamera açılıyor. İzin istenirse onayla.');
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
+    if(id!==generation){s.getTracks().forEach(t=>t.stop());return;}
+    stream=s;video.srcObject=s;await video.play();if(id!==generation)return;
+    reader.classList.add('live');running=true;busy=false;errorCount=0;buttons();message('Okuyucu hazırlanıyor…');void scan(id);
+  }catch(err){if(id!==generation)return;release(false);message('Kamera açılamadı. Safari kamera iznini kontrol et. ('+String(err?.message||err)+')','error');}
 });
-async function closeCamera() {
-  if (busy || !running || !scanner) return;
-  busy = true; buttons();
-  try {
-    await scanner.stop();
-    running = false;
-    scanner.clear();
-    message('Kamera kapalı. Son okunan kod ekranda kalır.');
-  } catch (err) { message('Kamera kapatılamadı: ' + String(err?.message || err), true); }
-  finally { busy = false; buttons(); }
-}
-stop.addEventListener('click', closeCamera);
-window.addEventListener('pagehide', () => {
-  // Release camera tracks even when the user leaves the page.
-  document.querySelectorAll('#reader video').forEach(v => {
-    v.srcObject?.getTracks().forEach(t => t.stop());
-  });
-  if (running) void closeCamera();
-});
-copy.addEventListener('click', async () => {
-  if (value === null) return;
-  try { await navigator.clipboard.writeText(value); message('Kod kopyalandı.'); }
-  catch (_) { message('Otomatik kopyalama yapılamadı. Kodun üzerine basılı tutarak kopyala.', true); }
-});
-</script>
-</body>
-</html>
+stop.addEventListener('click',()=>release());window.addEventListener('pagehide',()=>release(false));
+copy.addEventListener('click',async()=>{if(value===null)return;try{await navigator.clipboard.writeText(value);message('Kod kopyalandı.','ok');}catch(_){message('Kodu seçip basılı tutarak kopyalayabilirsin.','error');}});
+</script></body></html>
