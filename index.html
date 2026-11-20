@@ -8,7 +8,7 @@
 <style>
 :root{--blue:#008bd2;--red:#ff3348;--ink:#142332;--muted:#617181;--bg:#f3f6f9;--border:#dbe3eb}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,sans-serif}main{max-width:560px;margin:auto;padding:max(22px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom))}h1{font-size:24px;line-height:1.2;margin:0 0 6px;letter-spacing:-.6px}p{margin:0 0 16px;font-size:14px;color:var(--muted)}
-#reader{position:relative;isolation:isolate;aspect-ratio:4/3;overflow:hidden;border-radius:16px;background:#101a25;display:grid;place-items:center}#video,#outline{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none}#video{display:none}#reader.live #video{display:block}#outline{z-index:4}#placeholder{color:#bac8d5;font-size:14px}#reader.live #placeholder{display:none}
+#reader{position:relative;isolation:isolate;width:100%;aspect-ratio:1 / 1;overflow:hidden;border-radius:16px;background:#101a25}#video,#outline{position:absolute;inset:0;display:block;width:100%;height:100%;max-width:100%;max-height:100%;pointer-events:none}#video{display:none;object-fit:cover;object-position:50% 50%}#outline{overflow:hidden}#reader.live #video{display:block}#outline{z-index:4}#placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#bac8d5;font-size:14px}#reader.live #placeholder{display:none}
 #guide{position:absolute;z-index:2;left:12%;right:12%;top:12%;bottom:12%;pointer-events:none;display:none;box-shadow:0 0 0 500px #0003;border-radius:10px}#reader.live.show-guide #guide{display:block}#guide i{position:absolute;width:30px;height:30px;border:3px solid white}#guide i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:10px}#guide i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:10px}#guide i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:10px}#guide i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
 #laser{display:none;position:absolute;z-index:3;left:8%;right:8%;top:50%;height:2px;background:var(--red);box-shadow:0 0 7px #ff3348;pointer-events:none}#reader.live.show-laser #laser{display:block}
 #detected{position:absolute;z-index:5;top:10px;left:50%;transform:translateX(-50%);border-radius:7px;padding:6px 10px;color:white;background:var(--blue);font-size:12px;font-weight:750;white-space:nowrap;pointer-events:none} [hidden]{display:none!important}
@@ -34,7 +34,7 @@
 </div>
 <div id="status" role="status">Kamera açılmayı bekliyor.</div>
 <section class="result" id="resultBox"><div class="label">SON OKUNAN KOD</div><div id="format"></div><div id="result" aria-live="polite">—</div><button id="copy" class="secondary" disabled>Kodu kopyala</button></section>
-<p class="hint">Mavi çerçeve okunan kodu gösterir. Beyaz hedef ve kırmızı çizgi yalnızca hizalama yardımıdır.</p>
+<p class="hint">Mavi çerçeve okunan kodu gösterir. Beyaz hedef ve kırmızı çizgi yalnızca hizalama yardımıdır. Her yeni kodda kısa bir bip sesi çalar.</p>
 </main>
 <script>
 'use strict';
@@ -44,6 +44,26 @@ const start=$('start'),stop=$('stop'),status=$('status'),result=$('result'),form
 const canvas=document.createElement('canvas');
 const ctx=canvas.getContext('2d',{willReadFrequently:true});
 let stream=null,running=false,busy=false,generation=0,timer=0,hideTimer=0,value=null,lastFormat='',errorCount=0,visible=false;
+// A single short electronic scanner beep, unlocked by the camera button on iOS.
+let audioContext=null,lastBeepKey=null,lastSeenAt=0,missingSince=null;
+function unlockAudio(){
+  try{
+    const AudioCtor=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtor)return;
+    if(!audioContext||audioContext.state==='closed')audioContext=new AudioCtor();
+    // Call resume and start a silent buffer directly in the physical tap handler.
+    if(audioContext.state!=='running')audioContext.resume().catch(()=>{});
+    const silent=audioContext.createBufferSource();silent.buffer=audioContext.createBuffer(1,1,audioContext.sampleRate);silent.connect(audioContext.destination);silent.start(0);
+  }catch(_){}
+}
+function beep(){
+  try{
+    if(!audioContext||audioContext.state!=='running')return;
+    const t=audioContext.currentTime,osc=audioContext.createOscillator(),gain=audioContext.createGain();
+    osc.type='sine';osc.frequency.setValueAtTime(2300,t);gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.23,t+.006);gain.gain.setValueAtTime(.23,t+.065);gain.gain.exponentialRampToValueAtTime(.0001,t+.105);
+    osc.connect(gain);gain.connect(audioContext.destination);osc.onended=()=>{osc.disconnect();gain.disconnect();};osc.start(t);osc.stop(t+.11);
+  }catch(_){}
+}
 const svgNS='http://www.w3.org/2000/svg';
 function message(text,kind=''){if(status.textContent!==text)status.textContent=text;status.className=kind;}
 function buttons(){start.disabled=busy||running;stop.disabled=busy||!running;}
@@ -67,6 +87,9 @@ function showCodes(codes,w,h){
   detected.hidden=false;visible=true;clearTimeout(hideTimer);
   hideTimer=setTimeout(()=>{clearDetection();if(running)scanningMessage();},550);
   const c=codes[0],kind=c.format||'Barkod / QR';
+  const now=performance.now(),key=JSON.stringify([kind,c.text]);
+  if(key!==lastBeepKey||(missingSince!==null&&now-lastSeenAt>=1000)){beep();lastBeepKey=key;}
+  lastSeenAt=now;missingSince=null;
   if(value!==c.text||lastFormat!==kind){value=c.text;lastFormat=kind;result.textContent=value;format.textContent=kind;resultBox.classList.add('ok');copy.disabled=false;}
   message('Kod algılandı ve okundu.','ok');
 }
@@ -74,24 +97,27 @@ async function scan(id){
   if(!running||id!==generation)return;
   try{
     if(video.readyState>=2&&video.videoWidth&&video.videoHeight){
-      const scale=Math.min(1,1000/Math.max(video.videoWidth,video.videoHeight));
-      const w=Math.max(1,Math.round(video.videoWidth*scale)),h=Math.max(1,Math.round(video.videoHeight*scale));
+      // Center crop exactly the same square as the visible object-fit:cover preview.
+      const side=Math.min(video.videoWidth,video.videoHeight);
+      const sx=(video.videoWidth-side)/2,sy=(video.videoHeight-side)/2;
+      const w=Math.max(1,Math.min(1000,side)),h=w;
       if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
-      ctx.drawImage(video,0,0,w,h);
+      ctx.drawImage(video,sx,sy,side,side,0,0,w,h);
       const codes=await ZXingWASM.readBarcodes(ctx.getImageData(0,0,w,h),{tryHarder:true,tryRotate:true,tryInvert:true,maxNumberOfSymbols:1});
       if(!running||id!==generation)return;
       errorCount=0;
       const valid=codes.filter(c=>c.isValid!==false&&typeof c.text==='string'&&c.text.length>0&&!c.error);
-      if(valid.length)showCodes(valid,w,h);else if(!visible)scanningMessage();
+      if(valid.length)showCodes(valid,w,h);else{if(missingSince===null)missingSince=performance.now();if(!visible)scanningMessage();}
     }
   }catch(err){if(!running||id!==generation)return;if(++errorCount>=3){clearDetection();message('Okuyucu çalıştırılamadı. İnternet bağlantını kontrol et ve kamerayı yeniden aç.','error');release(false);return;}}
   if(running&&id===generation)timer=setTimeout(()=>scan(id),100);
 }
-function release(showMessage=true){generation++;running=false;busy=false;clearTimeout(timer);clearDetection();if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.pause();video.srcObject=null;reader.classList.remove('live');buttons();if(showMessage)message('Kamera kapalı. Son okunan kod ekranda kalır.');}
+function release(showMessage=true){generation++;running=false;busy=false;lastBeepKey=null;lastSeenAt=0;missingSince=null;clearTimeout(timer);clearDetection();if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.pause();video.srcObject=null;reader.classList.remove('live');buttons();if(showMessage)message('Kamera kapalı. Son okunan kod ekranda kalır.');}
 start.addEventListener('click',async()=>{
   if(busy||running)return;
   if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia){message('Kamera erişimi için sayfayı HTTPS üzerinden Safari veya Chrome ile aç.','error');return;}
   if(typeof window.ZXingWASM?.readBarcodes!=='function'){message('Okuyucu kütüphanesi yüklenemedi. İnterneti kontrol edip sayfayı yenile.','error');return;}
+  unlockAudio();
   const id=++generation;busy=true;buttons();message('Kamera açılıyor. İzin istenirse onayla.');
   try{
     const s=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}}});
